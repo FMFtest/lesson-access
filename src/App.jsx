@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 
-const TEACHER_PASSWORD_DEFAULT = "teacher123";
+const TEACHER_PASSWORD_HASH_DEFAULT = "5c41f012fdd06347a4fbaa72acf267d26add7b768dad69cc7aea940abcc786de";
+
+async function hashPassword(password) {
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
 const CODE_DURATION_MS = 45 * 60 * 1000;
 
 const JSONBIN_MASTER_KEY = "$2a$10$w1eddOdHjGxbra57XkiF1e2HA1wyQpxjX4hAZ7O2qQdNFMihQF38q";
@@ -19,7 +26,7 @@ const EMOJI_LIST = ["📊","🐍","🌐","🗄️","🎨","📐","🔬","💻","
 const DEFAULT_STATE = {
   activeCodes: {},
   folders: DEFAULT_FOLDERS,
-  teacherPassword: TEACHER_PASSWORD_DEFAULT,
+  teacherPasswordHash: TEACHER_PASSWORD_HASH_DEFAULT,
 };
 
 function generateCode() {
@@ -87,7 +94,7 @@ export default function App() {
 
   const [folders, setFolders] = useState(DEFAULT_FOLDERS);
   const [activeCodes, setActiveCodes] = useState({});
-  const [teacherPassword, setTeacherPassword] = useState(TEACHER_PASSWORD_DEFAULT);
+  const [teacherPasswordHash, setTeacherPasswordHash] = useState(TEACHER_PASSWORD_HASH_DEFAULT);
   const [now, setNow] = useState(Date.now());
 
   // Student state
@@ -120,7 +127,7 @@ export default function App() {
       const state = await loadState();
       setFolders(state.folders || DEFAULT_FOLDERS);
       setActiveCodes(state.activeCodes || {});
-      setTeacherPassword(state.teacherPassword || TEACHER_PASSWORD_DEFAULT);
+      setTeacherPasswordHash(state.teacherPasswordHash || TEACHER_PASSWORD_HASH_DEFAULT);
       setLoading(false);
     })();
   }, []);
@@ -138,7 +145,7 @@ export default function App() {
       const updated = { ...activeCodes };
       expired.forEach(([k]) => delete updated[k]);
       setActiveCodes(updated);
-      saveState({ activeCodes: updated, folders, teacherPassword });
+      saveState({ activeCodes: updated, folders, teacherPasswordHash });
     }
   }, [now]);
 
@@ -147,13 +154,14 @@ export default function App() {
     await saveState({
       activeCodes: newActiveCodes ?? activeCodes,
       folders: newFolders ?? folders,
-      teacherPassword: newPassword ?? teacherPassword,
+      teacherPasswordHash: newPassword ?? teacherPasswordHash,
     });
     setSaving(false);
   };
 
-  const handleLogin = () => {
-    if (loginPassword === teacherPassword) {
+  const handleLogin = async () => {
+    const hash = await hashPassword(loginPassword);
+    if (hash === teacherPasswordHash) {
       setView("teacher");
       setLoginError("");
       setLoginPassword("");
@@ -170,7 +178,7 @@ export default function App() {
     setActiveCodes(updated);
     setGeneratedCode(code);
     await persistState(updated, null, null);
-  }, [selectedFolder, activeCodes, folders, teacherPassword]);
+  }, [selectedFolder, activeCodes, folders, teacherPasswordHash]);
 
   const revokeCode = useCallback(async (code) => {
     const updated = { ...activeCodes };
@@ -219,7 +227,8 @@ export default function App() {
   };
 
   const handleChangePassword = async () => {
-    if (currentPassword !== teacherPassword) {
+    const currentHash = await hashPassword(currentPassword);
+    if (currentHash !== teacherPasswordHash) {
       setPasswordMsg({ type: "error", text: "Aktualne hasło jest nieprawidłowe" });
       return;
     }
@@ -231,8 +240,9 @@ export default function App() {
       setPasswordMsg({ type: "error", text: "Hasła nie są zgodne" });
       return;
     }
-    setTeacherPassword(newPassword);
-    await persistState(null, null, newPassword);
+    const newHash = await hashPassword(newPassword);
+    setTeacherPasswordHash(newHash);
+    await persistState(null, null, newHash);
     setPasswordMsg({ type: "success", text: "Hasło zostało zmienione!" });
     setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
     setTimeout(() => { setShowChangePassword(false); setPasswordMsg(null); }, 1500);
