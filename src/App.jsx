@@ -45,28 +45,10 @@ function formatTime(ms) {
 }
 
 // ─── JSONBin API ──────────────────────────────────────────────────────────────
-let binId = null;
+const JSONBIN_BIN_ID = "6a2e843af5f4af5e29efa2f9";
 
 async function getBinId() {
-  if (binId) return binId;
-  const saved = localStorage.getItem("jsonbin_bin_id");
-  if (saved) { binId = saved; return binId; }
-
-  // Create new bin
-  const res = await fetch("https://api.jsonbin.io/v3/b", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Master-Key": JSONBIN_MASTER_KEY,
-      "X-Bin-Name": JSONBIN_BIN_NAME,
-      "X-Bin-Private": "true",
-    },
-    body: JSON.stringify(DEFAULT_STATE),
-  });
-  const data = await res.json();
-  binId = data.metadata?.id;
-  if (binId) localStorage.setItem("jsonbin_bin_id", binId);
-  return binId;
+  return JSONBIN_BIN_ID;
 }
 
 async function loadState() {
