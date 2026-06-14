@@ -186,7 +186,7 @@ export default function App() {
     setActiveCodes(updated);
     if (generatedCode === code) setGeneratedCode(null);
     await persistState(updated, null, null);
-  }, [activeCodes, generatedCode, folders, teacherPassword]);
+  }, [activeCodes, generatedCode, folders, teacherPasswordHash]);
 
   const checkStudentCode = () => {
     const clean = studentCode.toUpperCase().replace(/[^A-Z0-9-]/g, "");
